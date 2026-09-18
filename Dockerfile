@@ -1,5 +1,5 @@
-# Use Microsoft Playwright Python base image with pre-installed Chromium and Linux dependencies
-FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
+# Use Microsoft Playwright Python base image matching Playwright 1.63.0
+FROM mcr.microsoft.com/playwright/python:v1.63.0-jammy
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -12,6 +12,7 @@ WORKDIR /app
 # Copy requirements and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN playwright install chromium
 
 # Copy application code
 COPY . .
