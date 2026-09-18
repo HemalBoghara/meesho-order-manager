@@ -1,0 +1,36 @@
+# Python cache and environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+.venv/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Sensitive user data and credentials
+config.json
+auth_state.json
+session_data/
+latest_orders.json
+latest_return_otps.json
+returns_debug.json
+
+# Screenshots & debugging artifacts
+*.png
+scratch/
+test_*.py
+inspect_*.py
+verify_*.py
+full_login_diagnostic.py
+check_hyeon_otp.py
+
+# Editor & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

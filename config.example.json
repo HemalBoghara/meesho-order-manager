@@ -1,0 +1,21 @@
+{
+  "meesho": {
+    "email_or_phone": "",
+    "password": "",
+    "headless": true,
+    "user_data_dir": "session_data",
+    "base_url": "https://supplier.meesho.com",
+    "pending_orders_url": "https://supplier.meesho.com/panel/v3/new/fulfillment",
+    "store_name": "Not Logged In",
+    "workspace_hash": ""
+  },
+  "app": {
+    "port": 8000,
+    "host": "0.0.0.0",
+    "auto_refresh_interval_minutes": 5
+  },
+  "auto_accept": {
+    "enabled": false,
+    "interval_minutes": 15
+  }
+}

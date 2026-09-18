@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meesho Order Manager - Multi-Account &amp; Courier Return OTP</title>
+    <meta name="description" content="Manage and accept pending orders on Meesho Supplier Panel with account switcher, date selection and Return OTP tracker.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation Bar -->
+        <header class="navbar">
+            <div class="brand">
+                <div class="brand-logo">
+                    <span class="logo-icon">📦</span>
+                </div>
+                <div class="brand-info">
+                    <h1>Meesho Order Manager</h1>
+                    <span class="sub-title">Multi-Account, Auto-Accept &amp; Courier Return OTP</span>
+                </div>
+            </div>
+
+            <!-- Active Logged In Account Badge -->
+            <div class="account-badge" id="accountBadge" title="Active Meesho Account">
+                <span class="store-icon">🏪</span>
+                <div class="store-text">
+                    <span class="store-title" id="accountStoreName">Not Logged In</span>
+                    <span class="store-email" id="accountStoreEmail">Please log in to continue</span>
+                </div>
+            </div>
+
+            <div class="nav-controls">
+                <div class="session-badge" id="sessionBadge">
+                    <span class="status-dot disconnected"></span>
+                    <span class="status-text" id="sessionStatusText">Not Logged In</span>
+                </div>
+                <!-- Login Button (Visible when logged out) -->
+                <button class="btn btn-primary" id="btnLoginNav" title="Login to Meesho Supplier Panel">
+                    <span>🔑 Login</span>
+                </button>
+                <button class="btn btn-secondary" id="btnCheckSession" title="Check connection to Meesho Supplier Panel">
+                    <span>🔍 Check Status</span>
+                </button>
+                <!-- Switch Account (Visible only when logged in) -->
+                <button class="btn btn-secondary hide" id="btnSwitchAccount" title="Switch Meesho account">
+                    <span>🔄 Switch Account</span>
+                </button>
+                <!-- Logout Button (Visible only when logged in) -->
+                <button class="btn btn-danger hide" id="btnLogout" title="Logout from Meesho account">
+                    <span>🚪 Logout</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Gated Section: Login Required (Shown when logged out) -->
+            <section class="login-gate-section" id="loginGateSection">
+                <div class="login-gate-card">
+                    <div class="gate-icon-pulse">🔒</div>
+                    <h2 class="gate-title">Login to Show All Data</h2>
+                    <p class="gate-subtitle">
+                        તમારા Meesho સપ્લાયર પેનલના તમામ પેન્ડિંગ ઓર્ડર્સ જોવા, ઓટો-એક્સેપ્ટ કરવા અને કુરિયર પાર્ટનરના રિટર્ન ડિલિવરી OTP જોવા માટે કૃપા કરીને તમારા Meesho ID &amp; Password થી લોગિન કરો.
+                    </p>
+                    <button class="btn btn-primary btn-lg" id="btnGateLogin">
+                        <span>🔑 Login to Meesho Supplier Panel</span>
+                    </button>
+                    <div class="gate-badges">
+                        <span class="gate-badge">⚡ Any Meesho Account Supported</span>
+                        <span class="gate-badge">📦 Instant Orders Sync</span>
+                        <span class="gate-badge">🚚 Live Courier Return OTP</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard Body: Visible ONLY after Login -->
+            <div class="dashboard-body hide" id="dashboardBody">
+                <!-- Metrics Cards -->
+                <section class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon pending-icon">⏳</div>
+                        <div class="stat-details">
+                            <span class="stat-label">Total Pending Orders</span>
+                            <h2 class="stat-value" id="statPendingCount">0</h2>
+                            <span class="stat-sub">Across all dates</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon selected-icon">✅</div>
+                        <div class="stat-details">
+                            <span class="stat-label">Selected Orders</span>
+                            <h2 class="stat-value" id="statSelectedCount">0</h2>
+                            <span class="stat-sub">Ready for action</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon accepted-icon">🚀</div>
+                        <div class="stat-details">
+                            <span class="stat-label">Total Accepted</span>
+                            <h2 class="stat-value" id="statAcceptedCount">0</h2>
+                            <span class="stat-sub">Accepted this session</span>
+                        </div>
+                    </div>
+
+                    <!-- Auto-Accept Widget Card -->
+                    <div class="stat-card auto-accept-card">
+                        <div class="stat-icon auto-icon">⚡</div>
+                        <div class="stat-details auto-details">
+                            <div class="auto-top-row">
+                                <span class="stat-label">Auto-Accept Scheduler</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="autoAcceptToggle">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <div class="auto-controls-row">
+                                <select id="autoAcceptInterval" class="interval-select">
+                                    <option value="15">Every 15 Mins</option>
+                                    <option value="30" selected>Every 30 Mins</option>
+                                    <option value="45">Every 45 Mins</option>
+                                    <option value="60">Every 1 Hour</option>
+                                </select>
+                                <span class="auto-timer-badge" id="autoAcceptCountdown">Inactive</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Courier Partner Return OTP Card Section -->
+                <section class="return-otp-section">
+                    <div class="return-otp-header">
+                        <div class="otp-header-left">
+                            <span class="otp-main-icon">🚚</span>
+                            <div>
+                                <h3 class="otp-section-title">Courier Partner Return Delivery OTP</h3>
+                                <span class="otp-section-sub">Show this verification code to the courier delivery boy when receiving return parcels at your doorstep.</span>
+                            </div>
+                        </div>
+                        <div class="otp-header-right">
+                            <span class="otp-last-updated" id="otpLastUpdated">Last checked: Never</span>
+                            <button class="btn btn-secondary btn-sm" id="btnRefreshOtp">
+                                <span class="btn-spinner hide" id="otpSpinner"></span>
+                                <span id="otpBtnText">🔄 Refresh Return OTP</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="otp-content" id="otpContentContainer">
+                        <!-- Empty state banner when no OTPs -->
+                        <div class="no-otp-banner" id="noOtpBanner">
+                            <span class="info-icon">ℹ️</span>
+                            <span>Currently no return parcels are Out for Delivery today. Once a courier boy is out for delivery, their live OTP will appear here instantly!</span>
+                        </div>
+                        <!-- Grid with collapsible AWB dropdowns populated via JS -->
+                        <div class="otp-cards-grid hide" id="otpCardsGrid"></div>
+                    </div>
+                </section>
+
+                <!-- Actions Toolbar -->
+                <section class="action-bar">
+                    <div class="action-left">
+                        <button class="btn btn-sync" id="btnSyncOrders">
+                            <span class="btn-spinner hide" id="syncSpinner"></span>
+                            <span id="syncBtnText">🔄 Sync All Orders</span>
+                        </button>
+                        <div class="search-box">
+                            <span class="search-icon">🔎</span>
+                            <input type="text" id="searchInput" placeholder="Search Order ID, SKU, Product, or Date..." />
+                        </div>
+                    </div>
+
+                    <div class="action-right">
+                        <button class="btn btn-warning" id="btnAcceptSelected" disabled>
+                            <span>⚡ Accept Selected (<span id="selectedBadge">0</span>)</span>
+                        </button>
+                        <button class="btn btn-success" id="btnAcceptAll">
+                            <span>✨ Accept All Orders</span>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Date Filter Chips Bar -->
+                <section class="date-chips-section" id="dateChipsSection">
+                    <div class="chips-label">Filter by Dispatch Date:</div>
+                    <div class="chips-container" id="dateChipsContainer">
+                        <button class="chip active" data-date="ALL">All Dates</button>
+                    </div>
+                </section>
+
+                <!-- Orders Table Section -->
+                <section class="table-section">
+                    <div class="table-container">
+                        <table class="orders-table" id="ordersTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 45px; text-align: center;">
+                                        <input type="checkbox" id="selectAllCheckbox" title="Select All Orders" />
+                                    </th>
+                                    <th>Sub-Order ID</th>
+                                    <th>SKU ID</th>
+                                    <th>Product Details</th>
+                                    <th style="text-align: center;">Qty</th>
+                                    <th>🚚 Dispatch Date</th>
+                                    <th>Order Date</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                <!-- Populated dynamically with date groups via JS -->
+                            </tbody>
+                        </table>
+
+                        <!-- Empty state -->
+                        <div class="empty-state" id="emptyState">
+                            <div class="empty-icon">📭</div>
+                            <h3>No Pending Orders Loaded</h3>
+                            <p>Click <strong>"Sync All Orders"</strong> to fetch all pending orders from your Meesho Supplier Panel.</p>
+                            <button class="btn btn-outline" id="btnEmptySync">🔄 Fetch Now</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Live Bot Terminal Logs -->
+            <section class="terminal-section">
+                <div class="terminal-header">
+                    <div class="terminal-title">
+                        <span class="terminal-dot red"></span>
+                        <span class="terminal-dot yellow"></span>
+                        <span class="terminal-dot green"></span>
+                        <span class="terminal-text">Bot Live Console Logs</span>
+                    </div>
+                    <div class="terminal-actions">
+                        <span class="auto-scroll-toggle">
+                            <input type="checkbox" id="autoScrollCheck" checked />
+                            <label for="autoScrollCheck">Auto-scroll</label>
+                        </span>
+                        <button class="btn-clear-logs" id="btnClearLogs">Clear Logs</button>
+                    </div>
+                </div>
+                <div class="terminal-body" id="terminalLogs">
+                    <div class="log-entry info">
+                        <span class="log-time">[System]</span>
+                        <span class="log-msg">Meesho Order Manager ready. Please log in to connect to your store.</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Universal Login Modal (Supports ANY Meesho Seller Account) -->
+    <div class="modal-backdrop hide" id="loginModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">🔐</span>
+                    <h2>Meesho Supplier Login</h2>
+                </div>
+                <button class="btn-close-modal" id="btnCloseLoginModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">
+                    તમારા કોઈપણ Meesho સપ્લાયર એકાઉન્ટનું Email ID અથવા Mobile Number અને Password નાખીને <strong>"Login to Meesho"</strong> ક્લિક કરો:
+                </p>
+
+                <!-- Saved Accounts Quick Switcher (Dynamically populated from localStorage) -->
+                <div class="saved-accounts-section hide" id="savedAccountsSection">
+                    <label class="preset-label">⚡ સેવ થયેલા એકાઉન્ટ્સ (Saved Accounts):</label>
+                    <div class="saved-accounts-chips" id="savedAccountsChips"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="inputEmail">Email ID અથવા Mobile Number</label>
+                    <input type="text" id="inputEmail" placeholder="e.g. supplier@domain.com અથવા 9876543210" autocomplete="username" />
+                </div>
+                <div class="form-group">
+                    <label for="inputPassword">Password</label>
+                    <div class="password-input-wrap">
+                        <input type="password" id="inputPassword" placeholder="Enter your Meesho password" autocomplete="current-password" />
+                        <button type="button" class="btn-toggle-pwd" id="btnTogglePassword" title="Show / Hide Password">👁️</button>
+                    </div>
+                </div>
+                <div class="form-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="chkRememberAccount" checked />
+                        <span>Remember this account on this device</span>
+                    </label>
+                </div>
+                <div class="login-notice">
+                    💡 <strong>સૂચના:</strong> Meesho ના કોઈપણ એકાઉન્ટમાં સીધા પાસવર્ડથી લોગિન થશે. લોગિન થતાં જ તમારા તમામ ઓર્ડર્સ અને રિટર્ન OTP ઓટો-સિંક થઈ જશે.
+                </div>
+                <div class="modal-error-box hide" id="loginModalError"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelModal">Cancel</button>
+                <button class="btn btn-primary" id="btnSubmitLogin">
+                    <span class="btn-spinner hide" id="loginSpinner"></span>
+                    <span id="loginBtnText">🚀 Login to Meesho</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Accept Modal -->
+    <div class="modal-backdrop hide" id="confirmModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">⚠️</span>
+                    <h2>Confirm Action</h2>
+                </div>
+                <button class="btn-close-modal" id="btnCloseConfirmModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmModalText">
+                    Are you sure?
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelConfirm">Cancel</button>
+                <button class="btn btn-success" id="btnExecuteConfirm">
+                    <span>Confirm</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

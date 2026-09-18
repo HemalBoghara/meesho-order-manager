@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: meesho-order-manager
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: HEADLESS
+        value: "true"
+      - key: PYTHONUNBUFFERED
+        value: "1"
