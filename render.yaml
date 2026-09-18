@@ -9,6 +9,6 @@ services:
       - key: PORT
         value: 8000
       - key: HEADLESS
-        value: "true"
+        value: "false"
       - key: PYTHONUNBUFFERED
         value: "1"

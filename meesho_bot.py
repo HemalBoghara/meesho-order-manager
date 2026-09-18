@@ -51,12 +51,12 @@ class MeeshoBot:
         self.current_email: str = meesho_cfg.get("email_or_phone", "diyoracosmetics2k26@gmail.com")
         self.workspace_hash: str = meesho_cfg.get("workspace_hash", "4ntb1")
         
-        # Cloud / Headless detection
+        # Cloud / Headless detection (default to False; on Linux Docker xvfb provides virtual display)
         headless_env = os.environ.get("HEADLESS")
         if headless_env is not None:
             self.is_headless = headless_env.lower() in ("true", "1", "yes")
         else:
-            self.is_headless = bool(os.environ.get("RENDER") or sys.platform != "win32")
+            self.is_headless = False
         
         self._lock = asyncio.Lock()
         self._nav_lock = asyncio.Lock()
@@ -153,6 +153,26 @@ class MeeshoBot:
                     self.log(f"Notice: Saved session not loaded: {e}", level="warning")
 
             self.context = await self.browser.new_context(**context_args)
+            
+            # Anti-detection stealth init scripts
+            await self.context.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+                window.chrome = {
+                    runtime: {},
+                    loadTimes: function() {},
+                    csi: function() {},
+                    app: {}
+                };
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['en-US', 'en', 'hi']
+                });
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [1, 2, 3, 4, 5]
+                });
+            """)
+            
             self.page = await self.context.new_page()
             return self.page
 
@@ -317,20 +337,25 @@ class MeeshoBot:
             self.log(f"Navigating to Meesho Login for {email_or_phone}...")
             
             await page.goto("https://supplier.meesho.com/panel/v3/new/root/login", timeout=45000, wait_until="domcontentloaded")
-            await asyncio.sleep(2)
+            await asyncio.sleep(3)
             await self._dismiss_popup_modals(page)
+
+            page_title = await page.title()
+            if "Access Denied" in page_title:
+                self.log(f"Notice: Page returned '{page_title}'. Waiting for render...", level="warning")
+                await asyncio.sleep(2)
 
             # Fill Email / Mobile Number
             self.log("Filling Email / Mobile Number...")
-            email_loc = page.locator("input[name='emailOrPhone'], input[type='text']").first
-            await email_loc.wait_for(state="visible", timeout=15000)
+            email_loc = page.locator("input[name='emailOrPhone'], input[type='text'], input[placeholder*='email' i], input[placeholder*='number' i], input[type='tel']").first
+            await email_loc.wait_for(state="visible", timeout=30000)
             await email_loc.fill(email_or_phone, force=True)
             self.log(f"Entered identifier: {email_or_phone}")
 
             # Fill Password
             self.log("Filling Password...")
             pwd_loc = page.locator("input[name='password'], input[type='password']").first
-            await pwd_loc.wait_for(state="visible", timeout=10000)
+            await pwd_loc.wait_for(state="visible", timeout=15000)
             await pwd_loc.fill(password, force=True)
             self.log("Entered password.")
 
