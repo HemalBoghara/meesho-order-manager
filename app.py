@@ -91,6 +91,10 @@ async def on_startup():
         scheduler.start(interval_minutes=interval)
         bot_instance.log(f"Resumed Auto-Accept scheduler on startup (Every {interval} mins).", level="info")
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "meesho-order-manager"}
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
     index_file = os.path.join(TEMPLATES_DIR, "index.html")

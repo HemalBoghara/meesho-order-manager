@@ -7,7 +7,7 @@ services:
     branch: main
     envVars:
       - key: PORT
-        value: 8000
+        value: 10000
       - key: HEADLESS
         value: "false"
       - key: PYTHONUNBUFFERED
