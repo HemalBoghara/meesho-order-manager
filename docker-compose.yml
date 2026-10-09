@@ -12,8 +12,7 @@ services:
       - NODE_ENV=production
       - HEADLESS=true
     volumes:
-      # Persist auth session and config across restarts
-      - ./auth_state.json:/app/auth_state.json
+      # Persist auth sessions, multi-account database, and configs across restarts
+      - ./data:/app/data
+      - ./sessions:/app/sessions
       - ./config.json:/app/config.json
-      - ./latest_orders.json:/app/latest_orders.json
-      - ./latest_return_otps.json:/app/latest_return_otps.json
