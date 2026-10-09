@@ -24,34 +24,20 @@ Meesho સપ્લાયર પેનલમાંથી Pending Orders ઓટ�
 
 ---
 
-## 🛠️ How to Run
+## 🛠️ How to Run (Node.js - Recommended)
 
-### Method 1: Double Click `start.bat`
-`meesho-order-manager` ફોલ્ડરમાં રહેલ `start.bat` ફાઇલ પર ડબલ ક્લિક કરો. સર્વર ચાલુ થઈ જશે અને તમારા બ્રાઉઝરમાં `http://127.0.0.1:8000` ઓટોમેટિક ખૂલી જશે.
+### Method 1: Double Click `start-node.bat`
+`meesho-order-manager` ફોલ્ડરમાં રહેલ `start-node.bat` ફાઇલ પર ડબલ ક્લિક કરો. સર્વર ચાલુ થઈ જશે અને તમારા બ્રાઉઝરમાં `http://127.0.0.1:8000` આપમેળે ખૂલી જશે.
 
-### Method 2: Command Line
+### Method 2: Command Line (Node.js)
 ```powershell
-cd C:\Users\Hemal\.gemini\antigravity-ide\scratch\meesho-order-manager
-python run.py
+cd "C:\Users\Hemal Boghara\.gemini\antigravity-ide\scratch\meesho-order-manager"
+npm install
+npm start
 ```
 
-### Method 3: Deploy on Render.com (Docker)
-1. **GitHub પર કોડ પુશ કરો**:
-   ```bash
-   git add .
-   git commit -m "Deploy Meesho Order Manager to Render"
-   git push -u origin main
-   ```
-2. **Render.com પર જાઓ**:
-   - `New +` -> `Web Service` પર ક્લિક કરો.
-   - તમારું GitHub Repository (`HemalBoghara/meesho-order-manager`) કનેક્ટ કરો.
-   - **Environment**: `Docker` સિલેક્ટ કરો.
-   - **Plan**: `Free` સિલેક્ટ કરો.
-   - **Environment Variables**:
-     - `HEADLESS` = `true`
-     - `PYTHONUNBUFFERED` = `1`
-   - **Create Web Service** પર ક્લિક કરો!
-3. બસ! થોડીવારમાં તમારી વેબસાઇટ Render ના લાઈવ URL પર તૈયાર થઈ જશે.
+### 🚀 Hostinger Deployment
+સંપૂર્ણ વિગતવાર સ્ટેપ-બાય-સ્ટેપ ગાઈડ માટે [HOSTINGER_DEPLOY_GUIDE.md](file:///C:/Users/Hemal%20Boghara/.gemini/antigravity-ide/scratch/meesho-order-manager/HOSTINGER_DEPLOY_GUIDE.md) જુઓ (Hostinger VPS & Docker / PM2).
 
 ---
 

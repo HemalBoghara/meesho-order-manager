@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  meesho-order-manager:
+    build: .
+    container_name: meesho-order-manager
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - NODE_ENV=production
+      - HEADLESS=true
+    volumes:
+      # Persist auth session and config across restarts
+      - ./auth_state.json:/app/auth_state.json
+      - ./config.json:/app/config.json
+      - ./latest_orders.json:/app/latest_orders.json
+      - ./latest_return_otps.json:/app/latest_return_otps.json

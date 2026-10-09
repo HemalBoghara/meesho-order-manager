@@ -1,28 +1,28 @@
-# Use Microsoft Playwright Python base image matching Playwright 1.63.0
-FROM mcr.microsoft.com/playwright/python:v1.63.0-jammy
-
-# Install Xvfb (X Virtual Framebuffer) and xauth for virtual display support
-RUN apt-get update && apt-get install -y xvfb xauth && rm -rf /var/lib/apt/lists/*
+# Use official Microsoft Playwright Node.js base image (includes Node 20 + all Chromium browser dependencies)
+FROM mcr.microsoft.com/playwright:v1.43.0-jammy
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    HEADLESS=false \
-    DISPLAY=:99 \
-    PORT=10000
+ENV NODE_ENV=production \
+    HEADLESS=true \
+    PORT=8000
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN playwright install chromium
+# Copy package files first for optimal docker layer caching
+COPY package*.json ./
+
+# Install npm dependencies
+RUN npm install --omit=dev
+
+# Install Playwright Chromium browser
+RUN npx playwright install chromium
 
 # Copy application code
 COPY . .
 
-# Expose default port (Render standard is 10000)
-EXPOSE 10000
+# Expose server port
+EXPOSE 8000
 
-# Start Xvfb virtual display in background and execute python web server
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset & sleep 1 && exec python run.py"]
+# Start Node.js Express server
+CMD ["node", "server.js"]
