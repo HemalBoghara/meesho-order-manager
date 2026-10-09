@@ -10,8 +10,7 @@ const { botManager } = require('./botManager');
 const { scheduler } = require('./scheduler');
 
 const app = express();
-const PORT = process.env.PORT || 8000;
-const HOST = process.env.HOST || '0.0.0.0';
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -490,12 +489,12 @@ function onStartup() {
     }
 }
 
-app.listen(PORT, HOST, () => {
+app.listen(PORT, () => {
     onStartup();
 
     console.log('\n' + '='.repeat(65));
     console.log(' 🚀 Meesho Multi-Store Order Manager (Node.js) Running');
-    console.log(` 🌐 Host: ${HOST} | Port: ${PORT}`);
+    console.log(` 🌐 Port: ${PORT}`);
     console.log(` 🌐 Local URL: http://127.0.0.1:${PORT}`);
     console.log('='.repeat(65) + '\n');
 
