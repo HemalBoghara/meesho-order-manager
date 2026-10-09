@@ -109,26 +109,44 @@ class MeeshoBot {
 
         await this._cleanupBrowserResources();
 
-        this.log(`Launching Chromium browser (headless=${isHeadlessMode}) for Meesho Supplier Panel...`);
-
         const launchArgs = [
             '--disable-blink-features=AutomationControlled',
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--no-first-run',
-            '--no-zygote'
+            '--disable-gpu'
         ];
 
         if (!isHeadlessMode) {
             launchArgs.push('--start-maximized');
         }
 
-        this.browser = await chromium.launch({
+        const baseLaunchOptions = {
             headless: isHeadlessMode,
             args: launchArgs
-        });
+        };
+
+        // Attempt 1: System Chrome (Bypasses Windows Application Control & Smart App Control)
+        try {
+            this.browser = await chromium.launch({
+                ...baseLaunchOptions,
+                channel: 'chrome'
+            });
+            this.log('Using official Google Chrome browser.');
+        } catch (chromeErr) {
+            // Attempt 2: System Edge
+            try {
+                this.browser = await chromium.launch({
+                    ...baseLaunchOptions,
+                    channel: 'msedge'
+                });
+                this.log('Using Microsoft Edge browser.');
+            } catch (edgeErr) {
+                // Attempt 3: Bundled Playwright Chromium (Standard on Linux VPS & Docker)
+                this.log('Using bundled Playwright Chromium browser.');
+                this.browser = await chromium.launch(baseLaunchOptions);
+            }
+        }
 
         const contextArgs = {
             viewport: { width: 1280, height: 800 },
