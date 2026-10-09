@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 const { db } = require('./db');
+const { ensureChromiumInstalled } = require('./browserHelper');
 
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
 if (!fs.existsSync(SESSIONS_DIR)) {
@@ -68,7 +69,18 @@ class BotManager {
             try {
                 browser = await chromium.launch({ ...baseLaunchOptions, channel: 'msedge' });
             } catch (edgeErr) {
-                browser = await chromium.launch(baseLaunchOptions);
+                try {
+                    browser = await chromium.launch(baseLaunchOptions);
+                } catch (pwErr) {
+                    if (pwErr.message.includes("Executable doesn't exist") || pwErr.message.includes("playwright install")) {
+                        this.log(accountId, account.storeName, 'Chromium browser missing on server. Auto-downloading Playwright Chromium now...', 'warn');
+                        await ensureChromiumInstalled((msg) => this.log(accountId, account.storeName, msg, 'info'));
+                        this.log(accountId, account.storeName, 'Retrying browser launch after installation...', 'info');
+                        browser = await chromium.launch(baseLaunchOptions);
+                    } else {
+                        throw pwErr;
+                    }
+                }
             }
         }
 

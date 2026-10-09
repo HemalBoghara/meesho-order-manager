@@ -4,7 +4,7 @@
   "description": "Meesho Order Manager - Automated Pending Orders & Accept Manager for Meesho Sellers (Node.js)",
   "main": "server.js",
   "scripts": {
-    "build": "echo 'Build complete'",
+    "build": "npx playwright install chromium || echo 'Build complete'",
     "start": "node server.js",
     "dev": "node server.js",
     "postinstall": "npx playwright install chromium || true"

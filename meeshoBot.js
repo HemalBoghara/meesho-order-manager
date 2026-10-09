@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
+const { ensureChromiumInstalled } = require('./browserHelper');
 
 class MeeshoBot {
     constructor(configPath = 'config.json') {
@@ -144,7 +145,18 @@ class MeeshoBot {
             } catch (edgeErr) {
                 // Attempt 3: Bundled Playwright Chromium (Standard on Linux VPS & Docker)
                 this.log('Using bundled Playwright Chromium browser.');
-                this.browser = await chromium.launch(baseLaunchOptions);
+                try {
+                    this.browser = await chromium.launch(baseLaunchOptions);
+                } catch (pwErr) {
+                    if (pwErr.message.includes("Executable doesn't exist") || pwErr.message.includes("playwright install")) {
+                        this.log('Chromium browser missing on server. Auto-downloading Playwright Chromium now...');
+                        await ensureChromiumInstalled((msg) => this.log(msg));
+                        this.log('Retrying browser launch after installation...');
+                        this.browser = await chromium.launch(baseLaunchOptions);
+                    } else {
+                        throw pwErr;
+                    }
+                }
             }
         }
 

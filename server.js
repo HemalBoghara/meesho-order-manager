@@ -8,6 +8,7 @@ require('dotenv').config();
 const { db } = require('./db');
 const { botManager } = require('./botManager');
 const { scheduler } = require('./scheduler');
+const { ensureChromiumInstalled, isChromiumAvailable } = require('./browserHelper');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -444,9 +445,31 @@ app.post('/api/logs/clear', requireAuth, (req, res) => {
     res.json({ status: 'cleared' });
 });
 
+// Admin endpoint to install Playwright Chromium
+app.get('/api/admin/install-browser', async (req, res) => {
+    try {
+        const result = await ensureChromiumInstalled((msg) => console.log(msg));
+        res.json({ status: 'success', message: 'Chromium installed successfully', details: result });
+    } catch (err) {
+        res.status(500).json({ status: 'error', message: err.message });
+    }
+});
+
 // ----------------- STARTUP & SERVER LISTEN -----------------
 
 function onStartup() {
+    // In background on Linux production, ensure browser is installed
+    if (process.platform === 'linux') {
+        isChromiumAvailable().then(available => {
+            if (!available) {
+                console.log('[Startup] Chromium missing on Linux server, triggering background download...');
+                ensureChromiumInstalled(msg => console.log(msg)).catch(e => console.error('[Startup] Browser install error:', e.message));
+            } else {
+                console.log('[Startup] Chromium is available.');
+            }
+        }).catch(() => {});
+    }
+
     // If settings had auto-accept enabled, resume scheduler
     const settings = db.getSettings();
     if (settings.autoAcceptEnabled) {
