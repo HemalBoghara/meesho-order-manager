@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meesho Order Manager - Multi-Account &amp; Courier Return OTP</title>
-    <meta name="description" content="Manage and accept pending orders on Meesho Supplier Panel with account switcher, date selection and Return OTP tracker.">
+    <title>Meesho Multi-Store Order Manager</title>
+    <meta name="description" content="Manage, sync and auto-accept pending orders across multiple Meesho seller accounts simultaneously with live courier return OTPs.">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,74 +20,110 @@
                     <span class="logo-icon">📦</span>
                 </div>
                 <div class="brand-info">
-                    <h1>Meesho Order Manager</h1>
-                    <span class="sub-title">Multi-Account, Auto-Accept &amp; Courier Return OTP</span>
+                    <h1>Meesho Multi-Store Hub</h1>
+                    <span class="sub-title">Simultaneous Multi-Account Automation &amp; Courier Return OTPs</span>
                 </div>
             </div>
 
-            <!-- Active Logged In Account Badge -->
-            <div class="account-badge" id="accountBadge" title="Active Meesho Account">
-                <span class="store-icon">🏪</span>
-                <div class="store-text">
-                    <span class="store-title" id="accountStoreName">Not Logged In</span>
-                    <span class="store-email" id="accountStoreEmail">Please log in to continue</span>
-                </div>
-            </div>
+            <!-- User Auth Controls -->
+            <div class="nav-controls" id="navControls">
+                <!-- Logged Out View -->
+                <button class="btn btn-primary" id="btnNavAuthOpen">
+                    <span>🔑 Portal Login / Register</span>
+                </button>
 
-            <div class="nav-controls">
-                <div class="session-badge" id="sessionBadge">
-                    <span class="status-dot disconnected"></span>
-                    <span class="status-text" id="sessionStatusText">Not Logged In</span>
+                <!-- Logged In View (Hidden by default) -->
+                <div class="user-profile-btn hide" id="userProfileBadge">
+                    <span>👤</span>
+                    <span id="navUsername">User</span>
                 </div>
-                <!-- Login Button (Visible when logged out) -->
-                <button class="btn btn-primary" id="btnLoginNav" title="Login to Meesho Supplier Panel">
-                    <span>🔑 Login</span>
-                </button>
-                <button class="btn btn-secondary" id="btnCheckSession" title="Check connection to Meesho Supplier Panel">
-                    <span>🔍 Check Status</span>
-                </button>
-                <!-- Switch Account (Visible only when logged in) -->
-                <button class="btn btn-secondary hide" id="btnSwitchAccount" title="Switch Meesho account">
-                    <span>🔄 Switch Account</span>
-                </button>
-                <!-- Logout Button (Visible only when logged in) -->
-                <button class="btn btn-danger hide" id="btnLogout" title="Logout from Meesho account">
-                    <span>🚪 Logout</span>
+                <button class="btn btn-danger hide" id="btnUserLogout" title="Logout from portal">
+                    <span>🚪 Sign Out</span>
                 </button>
             </div>
         </header>
 
         <!-- Main Content Area -->
         <main class="main-content">
-            <!-- Gated Section: Login Required (Shown when logged out) -->
-            <section class="login-gate-section" id="loginGateSection">
-                <div class="login-gate-card">
-                    <div class="gate-icon-pulse">🔒</div>
-                    <h2 class="gate-title">Login to Show All Data</h2>
-                    <p class="gate-subtitle">
-                        તમારા Meesho સપ્લાયર પેનલના તમામ પેન્ડિંગ ઓર્ડર્સ જોવા, ઓટો-એક્સેપ્ટ કરવા અને કુરિયર પાર્ટનરના રિટર્ન ડિલિવરી OTP જોવા માટે કૃપા કરીને તમારા Meesho ID &amp; Password થી લોગિન કરો.
-                    </p>
-                    <button class="btn btn-primary btn-lg" id="btnGateLogin">
-                        <span>🔑 Login to Meesho Supplier Panel</span>
-                    </button>
-                    <div class="gate-badges">
-                        <span class="gate-badge">⚡ Any Meesho Account Supported</span>
-                        <span class="gate-badge">📦 Instant Orders Sync</span>
-                        <span class="gate-badge">🚚 Live Courier Return OTP</span>
+            <!-- 1. Gated Portal Auth Screen (Visible when User not logged into Portal) -->
+            <section class="auth-portal-section" id="authPortalSection">
+                <div class="auth-portal-card">
+                    <div class="auth-header">
+                        <span class="auth-icon">🚀</span>
+                        <h2 class="auth-title" id="authFormTitle">Sign In to Meesho Hub</h2>
+                        <p class="auth-sub">Log in with your user account to manage multiple Meesho stores simultaneously.</p>
                     </div>
+
+                    <!-- Auth Tabs (Login / Register) -->
+                    <div class="auth-tabs">
+                        <button type="button" class="auth-tab-btn active" id="tabBtnLogin">🔑 Log In</button>
+                        <button type="button" class="auth-tab-btn" id="tabBtnRegister">✨ Sign Up</button>
+                    </div>
+
+                    <!-- Auth Form -->
+                    <form id="authForm" autocomplete="on">
+                        <div class="form-group hide" id="groupUsername">
+                            <label for="authUsername">Username / Full Name</label>
+                            <input type="text" id="authUsername" placeholder="e.g. Hemal Boghara" autocomplete="name" />
+                        </div>
+                        <div class="form-group">
+                            <label for="authEmail">Email Address</label>
+                            <input type="email" id="authEmail" placeholder="e.g. yourname@domain.com" required autocomplete="email" />
+                        </div>
+                        <div class="form-group">
+                            <label for="authPassword">Password</label>
+                            <div class="password-input-wrap">
+                                <input type="password" id="authPassword" placeholder="Enter your password" required autocomplete="current-password" />
+                                <button type="button" class="btn-toggle-pwd" id="btnToggleAuthPwd">👁️</button>
+                            </div>
+                        </div>
+
+                        <div class="modal-error-box hide" id="authErrorBox"></div>
+
+                        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 16px;" id="btnAuthSubmit">
+                            <span class="btn-spinner hide" id="authSpinner"></span>
+                            <span id="authBtnText">Sign In</span>
+                        </button>
+
+                        <div style="margin-top: 18px; text-align: center; font-size: 12px; color: var(--text-muted);">
+                            💡 <strong>Tip:</strong> If you used the previous version, use <code>admin@meesho.local</code> / <code>admin</code> or create a new account!
+                        </div>
+                    </form>
                 </div>
             </section>
 
-            <!-- Dashboard Body: Visible ONLY after Login -->
+            <!-- 2. Main Dashboard (Visible ONLY after Portal Login) -->
             <div class="dashboard-body hide" id="dashboardBody">
-                <!-- Metrics Cards -->
+
+                <!-- Connected Meesho Stores Strip -->
+                <section class="stores-bar-section">
+                    <div class="stores-bar-header">
+                        <div class="stores-bar-title">
+                            <span>🏪 Connected Meesho Seller Stores</span>
+                            <span class="badge" id="storesCountBadge">0 Connected</span>
+                        </div>
+                        <button class="btn-add-store" id="btnOpenAddStoreModal">
+                            <span>➕ Add Meesho Store</span>
+                        </button>
+                    </div>
+
+                    <!-- Store Filter Chips (All Stores or individual) -->
+                    <div class="stores-chips-container" id="storesChipsContainer">
+                        <button class="store-filter-chip active" data-account-id="all">
+                            <span>🌐 All Stores (Combined)</span>
+                        </button>
+                        <!-- Dynamic store chips injected here -->
+                    </div>
+                </section>
+
+                <!-- Metrics Grid -->
                 <section class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-icon pending-icon">⏳</div>
                         <div class="stat-details">
                             <span class="stat-label">Total Pending Orders</span>
                             <h2 class="stat-value" id="statPendingCount">0</h2>
-                            <span class="stat-sub">Across all dates</span>
+                            <span class="stat-sub" id="statPendingSub">Across all active stores</span>
                         </div>
                     </div>
 
@@ -96,16 +132,16 @@
                         <div class="stat-details">
                             <span class="stat-label">Selected Orders</span>
                             <h2 class="stat-value" id="statSelectedCount">0</h2>
-                            <span class="stat-sub">Ready for action</span>
+                            <span class="stat-sub">Ready to accept</span>
                         </div>
                     </div>
 
                     <div class="stat-card">
                         <div class="stat-icon accepted-icon">🚀</div>
                         <div class="stat-details">
-                            <span class="stat-label">Total Accepted</span>
-                            <h2 class="stat-value" id="statAcceptedCount">0</h2>
-                            <span class="stat-sub">Accepted this session</span>
+                            <span class="stat-label">Total Stores</span>
+                            <h2 class="stat-value" id="statStoresCount">0</h2>
+                            <span class="stat-sub">Connected Meesho accounts</span>
                         </div>
                     </div>
 
@@ -114,7 +150,7 @@
                         <div class="stat-icon auto-icon">⚡</div>
                         <div class="stat-details auto-details">
                             <div class="auto-top-row">
-                                <span class="stat-label">Auto-Accept Scheduler</span>
+                                <span class="stat-label">Multi-Store Auto-Accept</span>
                                 <label class="switch">
                                     <input type="checkbox" id="autoAcceptToggle">
                                     <span class="slider round"></span>
@@ -133,32 +169,30 @@
                     </div>
                 </section>
 
-                <!-- Courier Partner Return OTP Card Section -->
+                <!-- Courier Partner Return OTP Card Section (Unified across all accounts) -->
                 <section class="return-otp-section">
                     <div class="return-otp-header">
                         <div class="otp-header-left">
                             <span class="otp-main-icon">🚚</span>
                             <div>
-                                <h3 class="otp-section-title">Courier Partner Return Delivery OTP</h3>
-                                <span class="otp-section-sub">Show this verification code to the courier delivery boy when receiving return parcels at your doorstep.</span>
+                                <h3 class="otp-section-title">Courier Partner Return Delivery OTPs (All Stores)</h3>
+                                <span class="otp-section-sub">Live delivery verification OTPs for return parcels across all your connected Meesho accounts simultaneously.</span>
                             </div>
                         </div>
                         <div class="otp-header-right">
                             <span class="otp-last-updated" id="otpLastUpdated">Last checked: Never</span>
-                            <button class="btn btn-secondary btn-sm" id="btnRefreshOtp">
+                            <button class="btn btn-secondary btn-sm" id="btnRefreshAllOtps">
                                 <span class="btn-spinner hide" id="otpSpinner"></span>
-                                <span id="otpBtnText">🔄 Refresh Return OTP</span>
+                                <span id="otpBtnText">🔄 Refresh All OTPs (Parallel)</span>
                             </button>
                         </div>
                     </div>
 
                     <div class="otp-content" id="otpContentContainer">
-                        <!-- Empty state banner when no OTPs -->
                         <div class="no-otp-banner" id="noOtpBanner">
                             <span class="info-icon">ℹ️</span>
-                            <span>Currently no return parcels are Out for Delivery today. Once a courier boy is out for delivery, their live OTP will appear here instantly!</span>
+                            <span>Currently no return parcels are Out for Delivery today across your connected stores.</span>
                         </div>
-                        <!-- Grid with collapsible AWB dropdowns populated via JS -->
                         <div class="otp-cards-grid hide" id="otpCardsGrid"></div>
                     </div>
                 </section>
@@ -166,13 +200,13 @@
                 <!-- Actions Toolbar -->
                 <section class="action-bar">
                     <div class="action-left">
-                        <button class="btn btn-sync" id="btnSyncOrders">
+                        <button class="btn btn-sync" id="btnSyncAllOrders">
                             <span class="btn-spinner hide" id="syncSpinner"></span>
-                            <span id="syncBtnText">🔄 Sync All Orders</span>
+                            <span id="syncBtnText">🔄 Sync All Stores (Parallel)</span>
                         </button>
                         <div class="search-box">
                             <span class="search-icon">🔎</span>
-                            <input type="text" id="searchInput" placeholder="Search Order ID, SKU, Product, or Date..." />
+                            <input type="text" id="searchInput" placeholder="Search SKU, Order ID, Store, or Product..." />
                         </div>
                     </div>
 
@@ -180,8 +214,8 @@
                         <button class="btn btn-warning" id="btnAcceptSelected" disabled>
                             <span>⚡ Accept Selected (<span id="selectedBadge">0</span>)</span>
                         </button>
-                        <button class="btn btn-success" id="btnAcceptAll">
-                            <span>✨ Accept All Orders</span>
+                        <button class="btn btn-success" id="btnAcceptAllStores">
+                            <span>✨ Accept All Across Stores</span>
                         </button>
                     </div>
                 </section>
@@ -203,18 +237,18 @@
                                     <th style="width: 45px; text-align: center;">
                                         <input type="checkbox" id="selectAllCheckbox" title="Select All Orders" />
                                     </th>
+                                    <th>Store Account</th>
                                     <th>Sub-Order ID</th>
                                     <th>SKU ID</th>
                                     <th>Product Details</th>
                                     <th style="text-align: center;">Qty</th>
                                     <th>🚚 Dispatch Date</th>
                                     <th>Order Date</th>
-                                    <th>Status</th>
                                     <th style="text-align: right;">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="ordersTableBody">
-                                <!-- Populated dynamically with date groups via JS -->
+                                <!-- Dynamic rows -->
                             </tbody>
                         </table>
 
@@ -222,8 +256,8 @@
                         <div class="empty-state" id="emptyState">
                             <div class="empty-icon">📭</div>
                             <h3>No Pending Orders Loaded</h3>
-                            <p>Click <strong>"Sync All Orders"</strong> to fetch all pending orders from your Meesho Supplier Panel.</p>
-                            <button class="btn btn-outline" id="btnEmptySync">🔄 Fetch Now</button>
+                            <p>Click <strong>"Sync All Stores (Parallel)"</strong> to pull live pending orders from all your connected Meesho accounts.</p>
+                            <button class="btn btn-outline" id="btnEmptySync">🔄 Sync All Now</button>
                         </div>
                     </div>
                 </section>
@@ -236,7 +270,7 @@
                         <span class="terminal-dot red"></span>
                         <span class="terminal-dot yellow"></span>
                         <span class="terminal-dot green"></span>
-                        <span class="terminal-text">Bot Live Console Logs</span>
+                        <span class="terminal-text">Live Multi-Store Console Logs</span>
                     </div>
                     <div class="terminal-actions">
                         <span class="auto-scroll-toggle">
@@ -249,61 +283,55 @@
                 <div class="terminal-body" id="terminalLogs">
                     <div class="log-entry info">
                         <span class="log-time">[System]</span>
-                        <span class="log-msg">Meesho Order Manager ready. Please log in to connect to your store.</span>
+                        <span class="log-msg">Meesho Multi-Store Hub ready. Sign in or connect your seller stores.</span>
                     </div>
                 </div>
             </section>
         </main>
     </div>
 
-    <!-- Universal Login Modal (Supports ANY Meesho Seller Account) -->
-    <div class="modal-backdrop hide" id="loginModal">
+    <!-- Modal: Add New Meesho Store Account -->
+    <div class="modal-backdrop hide" id="addStoreModal">
         <div class="modal-card">
             <div class="modal-header">
                 <div class="modal-title-group">
-                    <span class="modal-icon">🔐</span>
-                    <h2>Meesho Supplier Login</h2>
+                    <span class="modal-icon">🏪</span>
+                    <h2>Add Meesho Seller Account</h2>
                 </div>
-                <button class="btn-close-modal" id="btnCloseLoginModal">&times;</button>
+                <button class="btn-close-modal" id="btnCloseAddStoreModal">&times;</button>
             </div>
             <div class="modal-body">
                 <p class="modal-desc">
-                    તમારા કોઈપણ Meesho સપ્લાયર એકાઉન્ટનું Email ID અથવા Mobile Number અને Password નાખીને <strong>"Login to Meesho"</strong> ક્લિક કરો:
+                    તમારા Meesho સપ્લાયર એકાઉન્ટની વિગતો ઉમેરો. તે 24/7 સિક્યોર સેશનમાં કનેક્ટ રહેશે:
                 </p>
 
-                <!-- Saved Accounts Quick Switcher (Dynamically populated from localStorage) -->
-                <div class="saved-accounts-section hide" id="savedAccountsSection">
-                    <label class="preset-label">⚡ સેવ થયેલા એકાઉન્ટ્સ (Saved Accounts):</label>
-                    <div class="saved-accounts-chips" id="savedAccountsChips"></div>
-                </div>
-
                 <div class="form-group">
-                    <label for="inputEmail">Email ID અથવા Mobile Number</label>
-                    <input type="text" id="inputEmail" placeholder="e.g. supplier@domain.com અથવા 9876543210" autocomplete="username" />
+                    <label for="newStoreName">Store Name / Label (Optional)</label>
+                    <input type="text" id="newStoreName" placeholder="e.g. DIYORA Cosmetics અથવા Hyeon Fashion" />
                 </div>
                 <div class="form-group">
-                    <label for="inputPassword">Password</label>
+                    <label for="newStoreEmail">Meesho Email ID અથવા Mobile Number</label>
+                    <input type="text" id="newStoreEmail" placeholder="supplier@domain.com અથવા 9876543210" required />
+                </div>
+                <div class="form-group">
+                    <label for="newStorePassword">Meesho Password</label>
                     <div class="password-input-wrap">
-                        <input type="password" id="inputPassword" placeholder="Enter your Meesho password" autocomplete="current-password" />
-                        <button type="button" class="btn-toggle-pwd" id="btnTogglePassword" title="Show / Hide Password">👁️</button>
+                        <input type="password" id="newStorePassword" placeholder="Enter Meesho password" required />
+                        <button type="button" class="btn-toggle-pwd" id="btnToggleStorePwd">👁️</button>
                     </div>
                 </div>
-                <div class="form-options">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="chkRememberAccount" checked />
-                        <span>Remember this account on this device</span>
-                    </label>
+                <div class="form-group">
+                    <label for="newStoreHash">Workspace Hash (Optional)</label>
+                    <input type="text" id="newStoreHash" placeholder="e.g. 4ntb1 (Auto-detected if blank)" />
                 </div>
-                <div class="login-notice">
-                    💡 <strong>સૂચના:</strong> Meesho ના કોઈપણ એકાઉન્ટમાં સીધા પાસવર્ડથી લોગિન થશે. લોગિન થતાં જ તમારા તમામ ઓર્ડર્સ અને રિટર્ન OTP ઓટો-સિંક થઈ જશે.
-                </div>
-                <div class="modal-error-box hide" id="loginModalError"></div>
+
+                <div class="modal-error-box hide" id="addStoreError"></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" id="btnCancelModal">Cancel</button>
-                <button class="btn btn-primary" id="btnSubmitLogin">
-                    <span class="btn-spinner hide" id="loginSpinner"></span>
-                    <span id="loginBtnText">🚀 Login to Meesho</span>
+                <button class="btn btn-secondary" id="btnCancelAddStore">Cancel</button>
+                <button class="btn btn-primary" id="btnSubmitAddStore">
+                    <span class="btn-spinner hide" id="addStoreSpinner"></span>
+                    <span id="addStoreBtnText">🚀 Connect Store</span>
                 </button>
             </div>
         </div>
@@ -320,9 +348,7 @@
                 <button class="btn-close-modal" id="btnCloseConfirmModal">&times;</button>
             </div>
             <div class="modal-body">
-                <p id="confirmModalText">
-                    Are you sure?
-                </p>
+                <p id="confirmModalText">Are you sure?</p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="btnCancelConfirm">Cancel</button>
@@ -333,7 +359,7 @@
         </div>
     </div>
 
-    <!-- Global Toast Notification Container -->
+    <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
     <script src="/static/js/app.js"></script>

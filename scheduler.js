@@ -1,6 +1,7 @@
-const { botInstance } = require('./meeshoBot');
+const { db } = require('./db');
+const { botManager } = require('./botManager');
 
-class AutoAcceptScheduler {
+class MultiAccountScheduler {
     constructor() {
         this.enabled = false;
         this.intervalMinutes = 30;
@@ -39,18 +40,16 @@ class AutoAcceptScheduler {
         this.enabled = true;
         this.nextRun = new Date(Date.now() + this.intervalMinutes * 60 * 1000);
 
-        const cfg = botInstance.loadConfig();
-        cfg.auto_accept = cfg.auto_accept || {};
-        cfg.auto_accept.enabled = true;
-        cfg.auto_accept.interval_minutes = intervalMinutes;
-        botInstance.saveConfig(cfg);
+        db.updateSettings({
+            autoAcceptEnabled: true,
+            autoAcceptIntervalMinutes: intervalMinutes
+        });
 
         if (this.timer) {
             clearInterval(this.timer);
             this.timer = null;
         }
 
-        // Loop every 2 seconds to check if nextRun is reached
         this.timer = setInterval(async () => {
             if (!this.enabled || !this.nextRun) return;
 
@@ -59,60 +58,77 @@ class AutoAcceptScheduler {
             }
         }, 2000);
 
-        botInstance.log(`Auto-Accept scheduled: Runs every ${intervalMinutes} minutes.`, 'info');
+        botManager.log(null, 'Scheduler', `Multi-Account Auto-Accept scheduled: Runs every ${intervalMinutes} minutes across all connected stores.`, 'info');
     }
 
     stop() {
         this.enabled = false;
         this.nextRun = null;
 
-        const cfg = botInstance.loadConfig();
-        cfg.auto_accept = cfg.auto_accept || {};
-        cfg.auto_accept.enabled = false;
-        botInstance.saveConfig(cfg);
+        db.updateSettings({ autoAcceptEnabled: false });
 
         if (this.timer) {
             clearInterval(this.timer);
             this.timer = null;
         }
 
-        botInstance.log('Auto-Accept stopped.', 'warning');
+        botManager.log(null, 'Scheduler', 'Multi-Account Auto-Accept stopped.', 'warning');
     }
 
     async _executeJob() {
         if (this.isRunningJob) return;
 
         this.isRunningJob = true;
-        botInstance.log('⚡ [Auto-Accept Job Triggered] Checking for new pending orders...', 'info');
+        botManager.log(null, 'Scheduler', '⚡ [Auto-Accept Job Triggered] Checking pending orders across all active stores simultaneously...', 'info');
 
         try {
-            const orders = await botInstance.fetchPendingOrders();
+            const allAccounts = db.data.accounts.filter(a => a.status === 'CONNECTED' && a.autoAccept !== false);
 
-            if (orders && orders.length > 0) {
-                botInstance.log(`Auto-Accept: Found ${orders.length} pending orders. Accepting all...`, 'info');
-                const res = await botInstance.acceptOrders(null, true);
-                const count = res.accepted_count || 0;
-                this.totalAccepted += count;
-                botInstance.log(`🎉 Auto-Accept completed: ${count} orders accepted.`, 'info');
+            if (allAccounts.length === 0) {
+                botManager.log(null, 'Scheduler', 'Auto-Accept: No connected stores with auto-accept enabled.', 'info');
             } else {
-                botInstance.log('Auto-Accept: No pending orders found at this time.', 'info');
+                botManager.log(null, 'Scheduler', `Auto-Accept running for ${allAccounts.length} store(s) in parallel...`, 'info');
+
+                // Execute for each store in parallel
+                const results = await Promise.allSettled(allAccounts.map(async (acc) => {
+                    const orders = await botManager.fetchAccountOrders(acc);
+                    if (orders && orders.length > 0) {
+                        botManager.log(acc.id, acc.storeName, `Auto-Accept: Found ${orders.length} pending order(s). Accepting all...`, 'info');
+                        const res = await botManager.acceptAccountOrders(acc, null, true);
+                        return res.acceptedCount || 0;
+                    } else {
+                        botManager.log(acc.id, acc.storeName, 'Auto-Accept: No pending orders.', 'info');
+                        return 0;
+                    }
+                }));
+
+                let jobAccepted = 0;
+                results.forEach((r, idx) => {
+                    if (r.status === 'fulfilled') {
+                        jobAccepted += r.value || 0;
+                    } else {
+                        botManager.log(allAccounts[idx].id, allAccounts[idx].storeName, `Auto-Accept job error: ${r.reason.message}`, 'error');
+                    }
+                });
+
+                this.totalAccepted += jobAccepted;
+                botManager.log(null, 'Scheduler', `🎉 Auto-Accept cycle finished. Total accepted across stores: ${jobAccepted}`, 'info');
             }
 
             this.lastRun = new Date();
             this.nextRun = new Date(Date.now() + this.intervalMinutes * 60 * 1000);
         } catch (err) {
-            botInstance.log(`Auto-Accept job error: ${err.message}`, 'error');
-            // Retry in 1 minute
-            this.nextRun = new Date(Date.now() + 60 * 1000);
+            botManager.log(null, 'Scheduler', `Scheduler cycle error: ${err.message}`, 'error');
+            this.nextRun = new Date(Date.now() + 60 * 1000); // Retry in 1 min
         } finally {
             this.isRunningJob = false;
         }
     }
 }
 
-const scheduler = new AutoAcceptScheduler();
+const scheduler = new MultiAccountScheduler();
 
 module.exports = {
-    AutoAcceptScheduler,
+    MultiAccountScheduler,
     scheduler
 };
