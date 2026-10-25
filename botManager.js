@@ -218,9 +218,41 @@ class BotManager {
             await this._delay(2500);
             await this._dismissPopupModals(page);
 
-            this.log(accountId, account.storeName, 'Entering credentials...');
-            const emailLoc = page.locator("input[name='emailOrPhone'], input[type='text'], input[placeholder*='email' i], input[placeholder*='number' i], input[type='tel']").first();
-            await emailLoc.waitFor({ state: 'visible', timeout: 30000 });
+            this.log(accountId, account.storeName, 'Checking Meesho login page form...');
+            const selectorQuery = "input[name='emailOrPhone'], input[type='text'], input[placeholder*='email' i], input[placeholder*='number' i], input[placeholder*='mobile' i], input[type='tel'], input[type='email'], input#email, input#phone";
+            let emailLoc = page.locator(selectorQuery).first();
+
+            try {
+                await emailLoc.waitFor({ state: 'visible', timeout: 15000 });
+            } catch (waitErr) {
+                const currentUrl = page.url();
+                const pageTitle = await page.title().catch(() => 'unknown');
+                const pageText = await page.evaluate(() => document.body ? document.body.innerText.slice(0, 300) : '').catch(() => '');
+                const inputsCount = await page.locator('input').count().catch(() => 0);
+
+                this.log(accountId, account.storeName, `Login page inspection -> URL: ${currentUrl} | Title: "${pageTitle}" | Inputs: ${inputsCount}`, 'warn');
+
+                if (pageTitle.toLowerCase().includes('access denied') || pageText.toLowerCase().includes('access denied') || pageText.toLowerCase().includes('403 forbidden')) {
+                    throw new Error('Meesho Akamai Bot Defense blocked cloud browser on login page. Please connect using "Upload Session" with your saved auth.json file!');
+                }
+
+                if (currentUrl === 'https://supplier.meesho.com/' || currentUrl === 'https://supplier.meesho.com') {
+                    const loginBtn = page.locator("a[href*='login'], button:has-text('Login'), button:has-text('Log in')").first();
+                    if (await loginBtn.count() > 0) {
+                        this.log(accountId, account.storeName, 'Detected landing page, clicking Login...');
+                        await loginBtn.click({ force: true });
+                        await this._delay(3000);
+                        emailLoc = page.locator(selectorQuery).first();
+                        await emailLoc.waitFor({ state: 'visible', timeout: 15000 });
+                    }
+                } else if (inputsCount > 0) {
+                    emailLoc = page.locator("input:visible").first();
+                    await emailLoc.waitFor({ state: 'visible', timeout: 5000 });
+                } else {
+                    throw new Error(`Login form not visible on Meesho (Title: "${pageTitle}", URL: ${currentUrl}). Please use "Upload Session" feature.`);
+                }
+            }
+
             await emailLoc.fill(account.emailOrPhone, { force: true });
 
             const pwdLoc = page.locator("input[name='password'], input[type='password']").first();

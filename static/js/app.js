@@ -95,6 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const newStoreHash = document.getElementById('newStoreHash');
     const addStoreError = document.getElementById('addStoreError');
     const btnToggleStorePwd = document.getElementById('btnToggleStorePwd');
+    const inputSessionFile = document.getElementById('inputSessionFile');
+    const sessionUploadStatus = document.getElementById('sessionUploadStatus');
 
     // Confirm Modal
     const confirmModal = document.getElementById('confirmModal');
@@ -303,16 +305,82 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span>${statusDot}</span>
                 <strong>${acc.store_name}</strong>
                 <span class="store-badge-tag">${acc.orders_count || 0} Orders</span>
+                ${!isOnline ? `
+                    <label class="chip-session-label" title="Upload auth.json to connect directly" style="cursor: pointer; padding: 2px 8px; font-size: 11px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 4px; color: #60a5fa; margin-left: 6px;">
+                        📁 Session
+                        <input type="file" accept=".json" class="chip-session-input" data-acc-id="${acc.id}" style="display:none;" />
+                    </label>
+                    <button class="btn-chip-retry" data-acc-id="${acc.id}" title="Retry Cloud Login" style="cursor: pointer; padding: 2px 8px; font-size: 11px; background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 4px; color: #fbbf24; margin-left: 4px;">🔄 Login</button>
+                ` : ''}
                 <button class="store-card-delete-btn" title="Delete store">×</button>
             `;
 
             chip.addEventListener('click', (e) => {
-                if (e.target.classList.contains('store-card-delete-btn')) return;
+                if (e.target.closest('.store-card-delete-btn') || e.target.closest('.chip-session-label') || e.target.closest('.btn-chip-retry')) return;
                 selectedAccountId = acc.id;
                 renderStoreChips();
                 loadOrders(false);
                 loadOtps(false);
             });
+
+            // Handle session upload for this chip
+            const sessionInput = chip.querySelector('.chip-session-input');
+            if (sessionInput) {
+                sessionInput.addEventListener('change', async (e) => {
+                    e.stopPropagation();
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = async (evt) => {
+                        try {
+                            const sessionData = JSON.parse(evt.target.result);
+                            showToast(`Uploading session for ${acc.store_name}...`, 'info');
+                            const res = await apiFetch(`/api/accounts/${acc.id}/session`, {
+                                method: 'POST',
+                                body: { sessionData }
+                            });
+                            const data = await res.json();
+                            if (data.status === 'success') {
+                                showToast(data.message, 'success');
+                                loadAccounts();
+                                loadOrders(true);
+                            } else {
+                                showToast(data.message || 'Session upload failed.', 'error');
+                            }
+                        } catch (err) {
+                            showToast('Invalid JSON file: ' + err.message, 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            }
+
+            // Handle retry login
+            const retryBtn = chip.querySelector('.btn-chip-retry');
+            if (retryBtn) {
+                retryBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    retryBtn.textContent = '⏳ ...';
+                    retryBtn.disabled = true;
+                    showToast(`Connecting ${acc.store_name}...`, 'info');
+                    try {
+                        const res = await apiFetch(`/api/accounts/${acc.id}/login`, { method: 'POST' });
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            showToast(data.message, 'success');
+                            loadAccounts();
+                            loadOrders(true);
+                        } else {
+                            showToast(data.message || 'Login failed', 'error');
+                        }
+                    } catch (err) {
+                        showToast(err.message, 'error');
+                    } finally {
+                        retryBtn.textContent = '🔄 Login';
+                        retryBtn.disabled = false;
+                    }
+                });
+            }
 
             chip.querySelector('.store-card-delete-btn').addEventListener('click', (e) => {
                 e.stopPropagation();

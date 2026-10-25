@@ -243,6 +243,74 @@ app.post('/api/accounts/:id/login', requireAuth, async (req, res) => {
     }
 });
 
+// Upload session state directly for an existing account
+app.post('/api/accounts/:id/session', requireAuth, async (req, res) => {
+    const account = db.getAccountById(req.params.id);
+    if (!account || account.userId !== req.user.id) {
+        return res.status(404).json({ status: 'error', message: 'Account not found.' });
+    }
+
+    try {
+        const sessionData = req.body.sessionData || req.body;
+        if (!sessionData || (!sessionData.cookies && !sessionData.origins)) {
+            return res.status(400).json({ status: 'error', message: 'Invalid Playwright session state JSON format.' });
+        }
+
+        const SESSIONS_DIR = path.join(__dirname, 'sessions');
+        if (!fs.existsSync(SESSIONS_DIR)) fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+
+        const sessionFile = account.sessionFile || path.join(SESSIONS_DIR, `${account.id}_auth.json`);
+        fs.writeFileSync(sessionFile, JSON.stringify(sessionData, null, 2), 'utf8');
+
+        db.updateAccount(account.id, { sessionFile, status: 'CONNECTED' });
+        botManager.log(account.id, account.storeName, 'Session state uploaded successfully! Store connected.', 'info');
+
+        res.json({
+            status: 'success',
+            message: `Session state saved successfully! ${account.storeName} is now connected.`,
+            account: db.getAccountById(account.id)
+        });
+    } catch (err) {
+        res.status(500).json({ status: 'error', message: err.message });
+    }
+});
+
+// Add new store directly by uploading session file
+app.post('/api/accounts/from-session', requireAuth, async (req, res) => {
+    try {
+        const { store_name = '', sessionData } = req.body;
+        const data = sessionData || req.body;
+        if (!data || (!data.cookies && !data.origins)) {
+            return res.status(400).json({ status: 'error', message: 'Invalid Playwright session state JSON format.' });
+        }
+
+        const SESSIONS_DIR = path.join(__dirname, 'sessions');
+        if (!fs.existsSync(SESSIONS_DIR)) fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+
+        const account = db.addAccount({
+            userId: req.user.id,
+            storeName: store_name.trim() || 'Meesho Store',
+            emailOrPhone: 'session_auth',
+            password: '',
+            workspaceHash: '4ntb1'
+        });
+
+        const sessionFile = path.join(SESSIONS_DIR, `${account.id}_auth.json`);
+        fs.writeFileSync(sessionFile, JSON.stringify(data, null, 2), 'utf8');
+
+        db.updateAccount(account.id, { sessionFile, status: 'CONNECTED' });
+        botManager.log(account.id, account.storeName, `Connected store "${account.storeName}" via uploaded session!`, 'info');
+
+        res.json({
+            status: 'success',
+            message: `Store ${account.storeName} connected successfully via session!`,
+            account: db.getAccountById(account.id)
+        });
+    } catch (err) {
+        res.status(500).json({ status: 'error', message: err.message });
+    }
+});
+
 // Delete account
 app.delete('/api/accounts/:id', requireAuth, async (req, res) => {
     const account = db.getAccountById(req.params.id);
