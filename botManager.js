@@ -13,6 +13,7 @@ class BotManager {
     constructor() {
         this.activeBrowsers = new Map(); // accountId -> { browser, context, page }
         this.busyAccounts = new Set();    // Set of accountIds currently running an action
+        this.pendingOtpSessions = new Map(); // accountId -> { page, account, createdAt }
 
         // Cloud / Headless detection
         const headlessEnv = process.env.HEADLESS;
@@ -48,7 +49,9 @@ class BotManager {
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-gpu'
+            '--disable-infobars',
+            '--window-size=1920,1080',
+            '--lang=en-US,en'
         ];
 
         if (!this.isHeadless) {
@@ -85,8 +88,13 @@ class BotManager {
         }
 
         const contextArgs = {
-            viewport: { width: 1280, height: 800 },
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            viewport: { width: 1920, height: 1080 },
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            locale: 'en-US',
+            timezoneId: 'Asia/Kolkata',
+            permissions: ['geolocation', 'notifications'],
+            colorScheme: 'light',
+            deviceScaleFactor: 1
         };
 
         const sessionFile = account.sessionFile || path.join(SESSIONS_DIR, `${accountId}_auth.json`);
@@ -102,13 +110,79 @@ class BotManager {
 
         const context = await browser.newContext(contextArgs);
 
-        // Anti-detection stealth
-        await context.addInitScript(`
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-            window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
-            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en', 'hi'] });
-            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-        `);
+        // Advanced Anti-Detection Stealth for Cloud & Akamai
+        await context.addInitScript(() => {
+            // 1. Cleanly delete webdriver from prototype
+            try {
+                const proto = Object.getPrototypeOf(navigator);
+                delete proto.webdriver;
+            } catch (e) {}
+
+            // 2. Mock realistic Chrome runtime
+            window.chrome = {
+                app: { isInstalled: false },
+                runtime: {
+                    OnInstalledReason: { CHROME_UPDATE: 'chrome_update', INSTALL: 'install' },
+                    PlatformOs: { WIN: 'win' }
+                },
+                csi: function() {},
+                loadTimes: function() {}
+            };
+
+            // 3. Platform & hardware specifications
+            Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en', 'hi', 'gu'] });
+            Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+            Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+            Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
+
+            // 4. Realistic Plugins array
+            try {
+                const fakePlugins = [
+                    { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
+                    { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+                    { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' }
+                ];
+                const pluginArray = Object.create(PluginArray.prototype);
+                fakePlugins.forEach((p, i) => {
+                    const plugin = Object.create(Plugin.prototype);
+                    Object.defineProperties(plugin, {
+                        name: { value: p.name },
+                        filename: { value: p.filename },
+                        description: { value: p.description },
+                        length: { value: 0 }
+                    });
+                    pluginArray[i] = plugin;
+                });
+                Object.defineProperty(pluginArray, 'length', { value: fakePlugins.length });
+                Object.defineProperty(navigator, 'plugins', { get: () => pluginArray });
+            } catch (e) {}
+
+            // 5. WebGL hardware spoofing (NVIDIA GeForce instead of Mesa/SwiftShader)
+            try {
+                const patchGL = (proto) => {
+                    if (!proto) return;
+                    const orig = proto.getParameter;
+                    proto.getParameter = function(param) {
+                        if (param === 37445) return 'Google Inc. (NVIDIA)';
+                        if (param === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+                        return orig.apply(this, arguments);
+                    };
+                };
+                if (typeof WebGLRenderingContext !== 'undefined') patchGL(WebGLRenderingContext.prototype);
+                if (typeof WebGL2RenderingContext !== 'undefined') patchGL(WebGL2RenderingContext.prototype);
+            } catch (e) {}
+
+            // 6. Notification permission
+            if (navigator.permissions && navigator.permissions.query) {
+                const origQuery = navigator.permissions.query;
+                navigator.permissions.query = (params) => (
+                    params.name === 'notifications' ?
+                        Promise.resolve({ state: Notification.permission || 'default' }) :
+                        origQuery(params)
+                );
+            }
+        });
 
         const page = await context.newPage();
         this.activeBrowsers.set(accountId, { browser, context, page });
@@ -253,18 +327,21 @@ class BotManager {
                 }
             }
 
-            await emailLoc.fill(account.emailOrPhone, { force: true });
+            await emailLoc.click();
+            await page.keyboard.type(account.emailOrPhone, { delay: 45 });
+            await this._delay(300);
 
             const pwdLoc = page.locator("input[name='password'], input[type='password']").first();
             await pwdLoc.waitFor({ state: 'visible', timeout: 15000 });
-            await pwdLoc.fill(account.password, { force: true });
+            await pwdLoc.click();
+            await page.keyboard.type(account.password, { delay: 45 });
 
-            await this._delay(500);
+            await this._delay(600);
 
             const submitBtn = page.locator("button[type='submit'], button:has-text('Log in')").first();
             await submitBtn.waitFor({ state: 'visible', timeout: 5000 });
             await submitBtn.click({ force: true });
-            this.log(accountId, account.storeName, "Submitted login form. Waiting for Meesho Supplier Panel...");
+            this.log(accountId, account.storeName, "Submitted login form. Waiting for Meesho Supplier Panel or OTP...");
 
             let elapsed = 0;
             while (elapsed < waitTimeoutSec) {
@@ -274,6 +351,128 @@ class BotManager {
                 if (page.isClosed()) {
                     throw new Error('Browser window was closed during login.');
                 }
+
+                const currentUrl = page.url();
+
+                // 1. Check if directly logged in
+                if (currentUrl.includes('/panel') && !currentUrl.includes('/login')) {
+                    const hash = this._extractWorkspaceHash(currentUrl) || account.workspaceHash;
+                    await this._dismissPopupModals(page);
+                    await this._delay(1500);
+
+                    const detectedStoreName = await this._extractStoreName(page);
+                    const finalStoreName = detectedStoreName || account.storeName || (account.emailOrPhone.split('@')[0]);
+
+                    await this.saveSessionState(account);
+
+                    db.updateAccount(accountId, {
+                        status: 'CONNECTED',
+                        storeName: finalStoreName,
+                        workspaceHash: hash
+                    });
+
+                    this.pendingOtpSessions.delete(accountId);
+                    this.busyAccounts.delete(accountId);
+
+                    this.log(accountId, finalStoreName, `Successfully logged in as: ${finalStoreName} (${hash})!`, 'info');
+                    return {
+                        success: true,
+                        storeName: finalStoreName,
+                        workspaceHash: hash
+                    };
+                }
+
+                // 2. Check if OTP is requested by Meesho
+                const otpSelector = "input[placeholder*='OTP' i], input[type='tel'], input[name*='otp' i], input[aria-label*='OTP' i], .otp-input, input[maxlength='1']";
+                const otpInputs = page.locator(otpSelector);
+                const hasOtpInput = (await otpInputs.count().catch(() => 0)) > 0 && await otpInputs.first().isVisible().catch(() => false);
+                const pageBodyText = await page.evaluate(() => document.body ? document.body.innerText : '').catch(() => '');
+                const hasOtpText = /enter\s*otp|verification\s*code|otp\s*sent/i.test(pageBodyText);
+
+                if (hasOtpInput || hasOtpText) {
+                    this.log(accountId, account.storeName, 'Meesho requested OTP verification. Waiting for 6-digit OTP from user dashboard...', 'warn');
+                    db.updateAccount(accountId, { status: 'OTP_REQUIRED' });
+                    this.pendingOtpSessions.set(accountId, {
+                        page,
+                        account,
+                        createdAt: Date.now()
+                    });
+
+                    // Don't release busy status so other operations wait
+                    return {
+                        status: 'otp_required',
+                        accountId,
+                        storeName: account.storeName,
+                        message: 'OTP Required: Please enter the 6-digit OTP sent to your registered mobile/email.'
+                    };
+                }
+
+                // 3. Check for invalid credentials
+                if (/incorrect\s*password|wrong\s*password|invalid\s*credentials|user\s*does\s*not\s*exist/i.test(pageBodyText)) {
+                    throw new Error('Invalid Meesho login credentials (email/mobile or password).');
+                }
+            }
+
+            throw new Error('Login timed out. Please check credentials or network.');
+        } catch (err) {
+            this.log(accountId, account.storeName, `Login failed: ${err.message}`, 'error');
+            db.updateAccount(accountId, { status: 'DISCONNECTED' });
+            this.pendingOtpSessions.delete(accountId);
+            this.busyAccounts.delete(accountId);
+            throw err;
+        }
+    }
+
+    async submitOtpForAccount(accountId, otpCode) {
+        if (!this.pendingOtpSessions.has(accountId)) {
+            throw new Error('No active OTP login session found for this store, or the session has expired. Please try connecting again.');
+        }
+
+        const session = this.pendingOtpSessions.get(accountId);
+        const { page, account } = session;
+
+        if (page.isClosed()) {
+            this.pendingOtpSessions.delete(accountId);
+            this.busyAccounts.delete(accountId);
+            throw new Error('Login browser was closed. Please try connecting again.');
+        }
+
+        this.log(accountId, account.storeName, `Entering received OTP (${otpCode.replace(/./g, '*')}) into Meesho...`, 'info');
+
+        try {
+            // Check for 6 individual single-digit inputs
+            const singleDigitInputs = page.locator("input[maxlength='1']");
+            const countDigits = await singleDigitInputs.count().catch(() => 0);
+
+            if (countDigits >= 4) {
+                const digits = otpCode.replace(/\D/g, '').split('');
+                for (let i = 0; i < Math.min(digits.length, countDigits); i++) {
+                    await singleDigitInputs.nth(i).click();
+                    await page.keyboard.type(digits[i], { delay: 50 });
+                    await this._delay(100);
+                }
+            } else {
+                const otpInput = page.locator("input[placeholder*='OTP' i], input[type='tel'], input[name*='otp' i], input:visible").first();
+                await otpInput.click();
+                await page.keyboard.type(otpCode.trim(), { delay: 50 });
+            }
+
+            await this._delay(600);
+
+            // Click Verify / Submit button
+            const verifyBtn = page.locator("button:has-text('Verify'), button:has-text('Submit'), button:has-text('Confirm'), button[type='submit']").first();
+            if (await verifyBtn.count() > 0 && await verifyBtn.isVisible().catch(() => false)) {
+                await verifyBtn.click({ force: true });
+            }
+
+            this.log(accountId, account.storeName, 'Submitted OTP. Waiting for Meesho Supplier Panel to load...', 'info');
+
+            let elapsed = 0;
+            while (elapsed < 35) {
+                await this._delay(1500);
+                elapsed += 1.5;
+
+                if (page.isClosed()) throw new Error('Browser closed during OTP verification.');
 
                 const currentUrl = page.url();
                 if (currentUrl.includes('/panel') && !currentUrl.includes('/login')) {
@@ -292,7 +491,10 @@ class BotManager {
                         workspaceHash: hash
                     });
 
-                    this.log(accountId, finalStoreName, `Successfully logged in as: ${finalStoreName} (${hash})!`, 'info');
+                    this.pendingOtpSessions.delete(accountId);
+                    this.busyAccounts.delete(accountId);
+
+                    this.log(accountId, finalStoreName, `OTP verified! Successfully connected: ${finalStoreName} (${hash})!`, 'info');
                     return {
                         success: true,
                         storeName: finalStoreName,
@@ -301,14 +503,20 @@ class BotManager {
                 }
             }
 
-            throw new Error('Login timed out. Please check credentials or OTP.');
+            throw new Error('OTP verification timed out or incorrect OTP entered. Please try again.');
         } catch (err) {
-            this.log(accountId, account.storeName, `Login failed: ${err.message}`, 'error');
-            db.updateAccount(accountId, { status: 'DISCONNECTED' });
+            this.log(accountId, account.storeName, `OTP verification error: ${err.message}`, 'error');
             throw err;
-        } finally {
-            this.busyAccounts.delete(accountId);
         }
+    }
+
+    cancelOtpForAccount(accountId) {
+        if (this.pendingOtpSessions.has(accountId)) {
+            this.pendingOtpSessions.delete(accountId);
+        }
+        this.busyAccounts.delete(accountId);
+        this.closeAccountBrowser(accountId);
+        db.updateAccount(accountId, { status: 'DISCONNECTED' });
     }
 
     // ----------------- FETCH ORDERS (SINGLE ACCOUNT) -----------------

@@ -161,8 +161,13 @@ class MeeshoBot {
         }
 
         const contextArgs = {
-            viewport: { width: 1280, height: 800 },
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            viewport: { width: 1920, height: 1080 },
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            locale: 'en-US',
+            timezoneId: 'Asia/Kolkata',
+            permissions: ['geolocation', 'notifications'],
+            colorScheme: 'light',
+            deviceScaleFactor: 1
         };
 
         if (!forceClean && fs.existsSync(this.authFile)) {
@@ -179,24 +184,79 @@ class MeeshoBot {
 
         this.context = await this.browser.newContext(contextArgs);
 
-        // Anti-detection stealth init scripts
-        await this.context.addInitScript(`
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined
-            });
+        // Advanced Anti-Detection Stealth for Cloud & Akamai
+        await this.context.addInitScript(() => {
+            // 1. Cleanly delete webdriver from prototype
+            try {
+                const proto = Object.getPrototypeOf(navigator);
+                delete proto.webdriver;
+            } catch (e) {}
+
+            // 2. Mock realistic Chrome runtime
             window.chrome = {
-                runtime: {},
-                loadTimes: function() {},
+                app: { isInstalled: false },
+                runtime: {
+                    OnInstalledReason: { CHROME_UPDATE: 'chrome_update', INSTALL: 'install' },
+                    PlatformOs: { WIN: 'win' }
+                },
                 csi: function() {},
-                app: {}
+                loadTimes: function() {}
             };
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['en-US', 'en', 'hi']
-            });
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3, 4, 5]
-            });
-        `);
+
+            // 3. Platform & hardware specifications
+            Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en', 'hi', 'gu'] });
+            Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+            Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+            Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
+
+            // 4. Realistic Plugins array
+            try {
+                const fakePlugins = [
+                    { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
+                    { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+                    { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' }
+                ];
+                const pluginArray = Object.create(PluginArray.prototype);
+                fakePlugins.forEach((p, i) => {
+                    const plugin = Object.create(Plugin.prototype);
+                    Object.defineProperties(plugin, {
+                        name: { value: p.name },
+                        filename: { value: p.filename },
+                        description: { value: p.description },
+                        length: { value: 0 }
+                    });
+                    pluginArray[i] = plugin;
+                });
+                Object.defineProperty(pluginArray, 'length', { value: fakePlugins.length });
+                Object.defineProperty(navigator, 'plugins', { get: () => pluginArray });
+            } catch (e) {}
+
+            // 5. WebGL hardware spoofing (NVIDIA GeForce instead of Mesa/SwiftShader)
+            try {
+                const patchGL = (proto) => {
+                    if (!proto) return;
+                    const orig = proto.getParameter;
+                    proto.getParameter = function(param) {
+                        if (param === 37445) return 'Google Inc. (NVIDIA)';
+                        if (param === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+                        return orig.apply(this, arguments);
+                    };
+                };
+                if (typeof WebGLRenderingContext !== 'undefined') patchGL(WebGLRenderingContext.prototype);
+                if (typeof WebGL2RenderingContext !== 'undefined') patchGL(WebGL2RenderingContext.prototype);
+            } catch (e) {}
+
+            // 6. Notification permission
+            if (navigator.permissions && navigator.permissions.query) {
+                const origQuery = navigator.permissions.query;
+                navigator.permissions.query = (params) => (
+                    params.name === 'notifications' ?
+                        Promise.resolve({ state: Notification.permission || 'default' }) :
+                        origQuery(params)
+                );
+            }
+        });
 
         this.page = await this.context.newPage();
         return this.page;

@@ -326,18 +326,6 @@
                     <input type="text" id="newStoreHash" placeholder="e.g. 4ntb1 (Auto-detected if blank)" />
                 </div>
 
-                <div style="margin: 15px 0; padding: 12px; background: rgba(59, 130, 246, 0.08); border: 1px dashed rgba(59, 130, 246, 0.3); border-radius: 8px;">
-                    <div style="font-weight: 600; font-size: 13px; color: #60a5fa; margin-bottom: 4px;">⚡ Instant Session Connect (Bypasses OTP & Cloud Bot Defense)</div>
-                    <div style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">Already logged in on PC? Upload your saved <code>auth.json</code> to connect immediately:</div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label class="btn btn-secondary btn-sm" style="cursor: pointer; margin: 0; padding: 6px 12px; font-size: 12px;">
-                            📁 Choose auth.json File
-                            <input type="file" id="inputSessionFile" accept=".json" style="display: none;" />
-                        </label>
-                        <span id="sessionUploadStatus" style="font-size: 12px; color: #10b981;"></span>
-                    </div>
-                </div>
-
                 <div class="modal-error-box hide" id="addStoreError"></div>
             </div>
             <div class="modal-footer">
@@ -345,6 +333,36 @@
                 <button class="btn btn-primary" id="btnSubmitAddStore">
                     <span class="btn-spinner hide" id="addStoreSpinner"></span>
                     <span id="addStoreBtnText">🚀 Connect Store</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Meesho OTP Verification Modal -->
+    <div class="modal-backdrop hide" id="otpModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">🔐</span>
+                    <h2>Meesho OTP Verification</h2>
+                </div>
+                <button class="btn-close-modal" id="btnCloseOtpModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc" id="otpModalDesc">
+                    Meesho એ સુરક્ષા માટે તમારા રજિસ્ટર્ડ મોબાઇલ / ઇમેઇલ પર 6-અંકનો OTP મોકલ્યો છે. કૃપા કરીને નીચે OTP દાખલ કરો:
+                </p>
+                <div class="form-group" style="text-align: center; margin: 15px 0;">
+                    <label for="inputOtpCode" style="font-size: 13px; margin-bottom: 8px; color: #94a3b8;">Enter 6-Digit Meesho OTP</label>
+                    <input type="text" id="inputOtpCode" maxlength="8" placeholder="• • • • • •" style="text-align: center; font-size: 24px; letter-spacing: 8px; font-weight: 700; max-width: 280px; margin: 0 auto; color: #6ee7b7; border-color: rgba(16, 185, 129, 0.4);" autocomplete="one-time-code" />
+                </div>
+                <div class="modal-error-box hide" id="otpModalError"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelOtp">Cancel</button>
+                <button class="btn btn-primary" id="btnSubmitOtp">
+                    <span class="btn-spinner hide" id="otpSubmitSpinner"></span>
+                    <span id="otpSubmitBtnText">✅ Verify &amp; Connect</span>
                 </button>
             </div>
         </div>

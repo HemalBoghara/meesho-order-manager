@@ -210,6 +210,15 @@ app.post('/api/accounts', requireAuth, async (req, res) => {
     // Trigger login asynchronously or wait
     try {
         const loginRes = await botManager.loginAccount(account);
+        if (loginRes && loginRes.status === 'otp_required') {
+            return res.json({
+                status: 'otp_required',
+                accountId: account.id,
+                storeName: account.storeName,
+                message: loginRes.message || 'OTP required. Please enter the 6-digit code sent by Meesho.',
+                account: db.getAccountById(account.id)
+            });
+        }
         res.json({
             status: 'success',
             message: `Successfully connected ${loginRes.storeName}!`,
@@ -233,6 +242,15 @@ app.post('/api/accounts/:id/login', requireAuth, async (req, res) => {
 
     try {
         const loginRes = await botManager.loginAccount(account);
+        if (loginRes && loginRes.status === 'otp_required') {
+            return res.json({
+                status: 'otp_required',
+                accountId: account.id,
+                storeName: account.storeName,
+                message: loginRes.message || 'OTP required. Please enter the 6-digit code sent by Meesho.',
+                account: db.getAccountById(account.id)
+            });
+        }
         res.json({
             status: 'success',
             message: `Connected ${loginRes.storeName} successfully!`,
@@ -241,6 +259,40 @@ app.post('/api/accounts/:id/login', requireAuth, async (req, res) => {
     } catch (err) {
         res.status(400).json({ status: 'error', message: err.message });
     }
+});
+
+// Submit OTP for store account login
+app.post('/api/accounts/:id/submit-otp', requireAuth, async (req, res) => {
+    const account = db.getAccountById(req.params.id);
+    if (!account || account.userId !== req.user.id) {
+        return res.status(404).json({ status: 'error', message: 'Account not found.' });
+    }
+
+    const { otp = '' } = req.body;
+    if (!otp || otp.trim().length < 4) {
+        return res.status(400).json({ status: 'error', message: 'Please enter a valid 6-digit OTP.' });
+    }
+
+    try {
+        const result = await botManager.submitOtpForAccount(account.id, otp.trim());
+        res.json({
+            status: 'success',
+            message: `OTP verified! Store "${result.storeName || account.storeName}" is now connected.`,
+            account: db.getAccountById(account.id)
+        });
+    } catch (err) {
+        res.status(400).json({ status: 'error', message: err.message });
+    }
+});
+
+// Cancel pending OTP login
+app.post('/api/accounts/:id/cancel-otp', requireAuth, (req, res) => {
+    const account = db.getAccountById(req.params.id);
+    if (!account || account.userId !== req.user.id) {
+        return res.status(404).json({ status: 'error', message: 'Account not found.' });
+    }
+    botManager.cancelOtpForAccount(account.id);
+    res.json({ status: 'success', message: 'OTP verification cancelled.' });
 });
 
 // Upload session state directly for an existing account

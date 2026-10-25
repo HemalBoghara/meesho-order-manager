@@ -370,6 +370,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             showToast(data.message, 'success');
                             loadAccounts();
                             loadOrders(true);
+                        } else if (data.status === 'otp_required') {
+                            showToast('OTP Required! Please enter OTP.', 'warning');
+                            openOtpModal(acc.id, acc.store_name, data.message);
+                            loadAccounts();
                         } else {
                             showToast(data.message || 'Login failed', 'error');
                         }
@@ -445,6 +449,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 addStoreModal.classList.add('hide');
                 loadAccounts();
                 loadOrders(true);
+            } else if (data.status === 'otp_required') {
+                showToast('OTP required to connect store!', 'warning');
+                addStoreModal.classList.add('hide');
+                openOtpModal(data.accountId, data.storeName, data.message);
+                loadAccounts();
             } else {
                 throw new Error(data.message || 'Failed to add store.');
             }
@@ -456,6 +465,85 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSubmitAddStore.disabled = false;
         }
     });
+
+    // ----------------- OTP VERIFICATION MODAL -----------------
+
+    const otpModal = document.getElementById('otpModal');
+    const btnCloseOtpModal = document.getElementById('btnCloseOtpModal');
+    const btnCancelOtp = document.getElementById('btnCancelOtp');
+    const btnSubmitOtp = document.getElementById('btnSubmitOtp');
+    const inputOtpCode = document.getElementById('inputOtpCode');
+    const otpModalDesc = document.getElementById('otpModalDesc');
+    const otpModalError = document.getElementById('otpModalError');
+    const otpSubmitSpinner = document.getElementById('otpSubmitSpinner');
+    let currentOtpAccountId = null;
+
+    function openOtpModal(accountId, storeName, message) {
+        currentOtpAccountId = accountId;
+        inputOtpCode.value = '';
+        otpModalError.classList.add('hide');
+        if (message) otpModalDesc.textContent = message;
+        otpModal.classList.remove('hide');
+        setTimeout(() => inputOtpCode.focus(), 150);
+    }
+
+    function closeOtpModal() {
+        otpModal.classList.add('hide');
+        if (currentOtpAccountId) {
+            apiFetch(`/api/accounts/${currentOtpAccountId}/cancel-otp`, { method: 'POST' }).catch(() => {});
+            currentOtpAccountId = null;
+        }
+        loadAccounts();
+    }
+
+    if (btnCloseOtpModal) btnCloseOtpModal.addEventListener('click', closeOtpModal);
+    if (btnCancelOtp) btnCancelOtp.addEventListener('click', closeOtpModal);
+
+    if (btnSubmitOtp) {
+        btnSubmitOtp.addEventListener('click', async () => {
+            const otp = inputOtpCode.value.trim();
+            if (!otp || otp.length < 4) {
+                otpModalError.textContent = 'Please enter a valid 6-digit OTP.';
+                otpModalError.classList.remove('hide');
+                return;
+            }
+
+            otpModalError.classList.add('hide');
+            otpSubmitSpinner.classList.remove('hide');
+            btnSubmitOtp.disabled = true;
+
+            try {
+                const res = await apiFetch(`/api/accounts/${currentOtpAccountId}/submit-otp`, {
+                    method: 'POST',
+                    body: { otp }
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    otpModal.classList.add('hide');
+                    currentOtpAccountId = null;
+                    loadAccounts();
+                    loadOrders(true);
+                } else {
+                    throw new Error(data.message || 'OTP verification failed.');
+                }
+            } catch (err) {
+                otpModalError.textContent = err.message;
+                otpModalError.classList.remove('hide');
+            } finally {
+                otpSubmitSpinner.classList.add('hide');
+                btnSubmitOtp.disabled = false;
+            }
+        });
+    }
+
+    if (inputOtpCode) {
+        inputOtpCode.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                btnSubmitOtp.click();
+            }
+        });
+    }
 
     // ----------------- ORDERS MANAGEMENT -----------------
 
